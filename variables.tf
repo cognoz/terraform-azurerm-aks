@@ -58,6 +58,32 @@ variable "private_cluster_enabled" {
   default     = false
 }
 
+variable "local_account_disabled" {
+  description = <<-EOT
+    Disable local (non-AAD) Kubernetes accounts. Recommended true when AAD /
+    Azure RBAC is in use, so all access flows through Entra ID.
+  EOT
+  type        = bool
+  default     = true
+}
+
+variable "api_server_authorized_ip_ranges" {
+  description = <<-EOT
+    List of CIDR ranges allowed to reach the public API server. Empty list
+    leaves the API server open (subject to Azure auth). Ignored for private
+    clusters, where the API server has no public endpoint.
+  EOT
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for cidr in var.api_server_authorized_ip_ranges : can(cidrhost(cidr, 0))
+    ])
+    error_message = "Each entry in api_server_authorized_ip_ranges must be a valid CIDR (e.g. \"203.0.113.0/24\")."
+  }
+}
+
 ###############################################################################
 # Default (system) node pool
 ###############################################################################
@@ -133,14 +159,14 @@ variable "additional_node_pools" {
 ###############################################################################
 
 variable "network_profile" {
-  description = "Optional network profile overrides. Null uses AKS defaults (kubenet)."
+  description = "Network profile. Defaults to Azure CNI with the azure network policy for a secure baseline."
   type = object({
     network_plugin = optional(string, "azure")
     network_policy = optional(string, "azure")
     service_cidr   = optional(string, null)
     dns_service_ip = optional(string, null)
   })
-  default = null
+  default = {}
 }
 
 variable "vnet_subnet_id" {

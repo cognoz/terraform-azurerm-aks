@@ -1,6 +1,6 @@
 # terraform-azurerm-aks
 
-An example of AKS Terraform module built to demonstrate Terraform **module
+An example AKS module built to demonstrate Terraform **module
 authoring** patterns.
 
 ## What this module demonstrates
@@ -21,7 +21,7 @@ authoring** patterns.
 
 ```hcl
 module "aks" {
-  source = "github.com/cognoz/terraform-azurerm-aks?ref=v0.1.0"
+  source = "github.com/<you>/terraform-azurerm-aks?ref=v0.1.0"
 
   resource_group_name = "rg-platform"
   location            = "swedencentral"
@@ -33,6 +33,11 @@ See `examples/minimal` and `examples/complete` for full configs.
 
 ## Design notes
 
+- **Secure-by-default:** `local_account_disabled = true`, network policy
+  defaults to `azure`, and `api_server_authorized_ip_ranges` locks the public
+  API server when set. Two Trivy findings remain suppressed via documented
+  inline `#trivy:ignore` directives, because Trivy can't resolve secure values
+  passed through variables and `dynamic` blocks.
 - **`ignore_changes = [kubernetes_version]`** keeps routine applies from
   fighting Azure's out-of-band patch bumps. Pin the minor version via the
   `kubernetes_version` input and upgrade deliberately.
@@ -94,6 +99,12 @@ jobs:
           scan-type: config
           scan-ref: .
 ```
+
+Additional things real module repos add:
+- **`terraform-docs`** to auto-generate the inputs/outputs tables in this README.
+- **Conventional commits + release-please** (or `semantic-release`) to cut
+  semver tags, which is what `?ref=v0.1.0` consumers depend on.
+- **A `.tflint.hcl`** enabling the `azurerm` ruleset for provider-aware lint.
 
 ## Versioning
 

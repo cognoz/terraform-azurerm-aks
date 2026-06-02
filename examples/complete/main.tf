@@ -60,6 +60,9 @@ module "aks" {
   admin_group_object_ids     = ["00000000-0000-0000-0000-000000000000"]
   log_analytics_workspace_id = azurerm_log_analytics_workspace.this.id
 
+  local_account_disabled          = true
+  api_server_authorized_ip_ranges = ["203.0.113.0/24"]
+
   tags = {
     environment = "demo"
     owner       = "platform-team"

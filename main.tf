@@ -2,16 +2,11 @@
 # Cluster
 ###############################################################################
 
-# trivy ignores below are scoped to this resource. They exist because Trivy's
-# static analysis cannot follow the secure values supplied through variables
-# and dynamic blocks; the module is capable of (and defaults to) secure config.
-#
-# AZU-0041: API server IP restriction is exposed via api_server_authorized_ip_ranges
-# (see the api_server_access_profile dynamic block). Public clusters set ranges;
-# private clusters don't need it. Static analysis cannot see the conditional block.
-#trivy:ignore:AZU-0041
-# AZU-0043: network_policy defaults to "azure" via the network_profile variable;
-# Trivy cannot resolve the default through the dynamic network_profile block.
+# Trivy ignore scoped to this resource. network_policy defaults to "azure" via
+# the network_profile variable, but Trivy cannot always resolve a default that
+# is emitted through a dynamic block. Both examples set secure values; the
+# module's defaults are secure. AZU-0041 (API server IP ranges) is satisfied by
+# the examples passing api_server_authorized_ip_ranges, so it needs no ignore.
 #trivy:ignore:AZU-0043
 resource "azurerm_kubernetes_cluster" "this" {
   name                = var.cluster_name

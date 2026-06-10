@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/cognoz/terraform-azurerm-aks/compare/v0.1.1...v0.2.0) (2026-06-10)
+
+
+### Features
+
+* support oidc/workload identity, defender, overlay networking, and orchestrator pinning ([1968c54](https://github.com/cognoz/terraform-azurerm-aks/commit/1968c54e56aca3216920460b2e41272e67181b27))
+
 ## [0.1.1](https://github.com/cognoz/terraform-azurerm-aks/compare/v0.1.0...v0.1.1) (2026-06-02)
 
 

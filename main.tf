@@ -19,6 +19,8 @@ resource "azurerm_kubernetes_cluster" "this" {
   private_cluster_enabled           = var.private_cluster_enabled
   role_based_access_control_enabled = true
   local_account_disabled            = var.local_account_disabled
+  oidc_issuer_enabled               = var.oidc_issuer_enabled
+  workload_identity_enabled         = var.workload_identity_enabled
 
   default_node_pool {
     name                         = var.default_node_pool.name
@@ -29,8 +31,16 @@ resource "azurerm_kubernetes_cluster" "this" {
     max_count                    = var.default_node_pool.enable_auto_scaling ? var.default_node_pool.max_count : null
     os_disk_size_gb              = var.default_node_pool.os_disk_size_gb
     only_critical_addons_enabled = var.default_node_pool.only_critical_addons
+    orchestrator_version         = var.default_node_pool.orchestrator_version
     zones                        = var.default_node_pool.zones
     vnet_subnet_id               = var.vnet_subnet_id
+
+    dynamic "upgrade_settings" {
+      for_each = var.default_node_pool.max_surge != null ? [1] : []
+      content {
+        max_surge = var.default_node_pool.max_surge
+      }
+    }
 
     tags = local.tags
   }
@@ -57,6 +67,7 @@ resource "azurerm_kubernetes_cluster" "this" {
     for_each = var.azure_rbac_enabled ? [1] : []
     content {
       azure_rbac_enabled     = true
+      tenant_id              = var.aad_tenant_id
       admin_group_object_ids = var.admin_group_object_ids
     }
   }
@@ -65,10 +76,12 @@ resource "azurerm_kubernetes_cluster" "this" {
   dynamic "network_profile" {
     for_each = var.network_profile != null ? [var.network_profile] : []
     content {
-      network_plugin = network_profile.value.network_plugin
-      network_policy = network_profile.value.network_policy
-      service_cidr   = network_profile.value.service_cidr
-      dns_service_ip = network_profile.value.dns_service_ip
+      network_plugin      = network_profile.value.network_plugin
+      network_plugin_mode = network_profile.value.network_plugin_mode
+      network_policy      = network_profile.value.network_policy
+      service_cidr        = network_profile.value.service_cidr
+      dns_service_ip      = network_profile.value.dns_service_ip
+      pod_cidr            = network_profile.value.pod_cidr
     }
   }
 
@@ -86,7 +99,16 @@ resource "azurerm_kubernetes_cluster" "this" {
   dynamic "oms_agent" {
     for_each = local.monitoring_enabled ? [1] : []
     content {
-      log_analytics_workspace_id = var.log_analytics_workspace_id
+      log_analytics_workspace_id      = var.log_analytics_workspace_id
+      msi_auth_for_monitoring_enabled = var.oms_msi_auth_enabled
+    }
+  }
+
+  # Microsoft Defender for Containers — enabled when a workspace id is supplied.
+  dynamic "microsoft_defender" {
+    for_each = var.microsoft_defender_log_analytics_workspace_id != null ? [1] : []
+    content {
+      log_analytics_workspace_id = var.microsoft_defender_log_analytics_workspace_id
     }
   }
 
@@ -112,6 +134,7 @@ resource "azurerm_kubernetes_cluster_node_pool" "this" {
   kubernetes_cluster_id = azurerm_kubernetes_cluster.this.id
   vm_size               = each.value.vm_size
   mode                  = each.value.mode
+  orchestrator_version  = each.value.orchestrator_version
 
   node_count           = each.value.enable_auto_scaling ? null : each.value.node_count
   auto_scaling_enabled = each.value.enable_auto_scaling

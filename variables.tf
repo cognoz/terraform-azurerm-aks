@@ -41,6 +41,34 @@ variable "kubernetes_version" {
   }
 }
 
+variable "oidc_issuer_enabled" {
+  description = "Enable the OIDC issuer endpoint. Required for workload identity federation."
+  type        = bool
+  default     = false
+}
+
+variable "workload_identity_enabled" {
+  description = <<-EOT
+    Enable Azure AD Workload Identity. Requires oidc_issuer_enabled = true.
+  EOT
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.workload_identity_enabled || var.oidc_issuer_enabled
+    error_message = "workload_identity_enabled requires oidc_issuer_enabled = true."
+  }
+}
+
+variable "microsoft_defender_log_analytics_workspace_id" {
+  description = <<-EOT
+    If set, enables the Microsoft Defender for Containers sensor and streams
+    findings to this Log Analytics workspace. Null disables the Defender block.
+  EOT
+  type        = string
+  default     = null
+}
+
 variable "sku_tier" {
   description = "Control plane SKU tier. \"Standard\" gives the uptime SLA."
   type        = string
@@ -99,6 +127,8 @@ variable "default_node_pool" {
     enable_auto_scaling  = optional(bool, false)
     os_disk_size_gb      = optional(number, 128)
     only_critical_addons = optional(bool, true)
+    orchestrator_version = optional(string, null)
+    max_surge            = optional(string, "10%")
     zones                = optional(list(string), ["1", "2", "3"])
   })
   default = {}
@@ -131,18 +161,19 @@ variable "additional_node_pools" {
     user node pool. Spot pools are supported via the priority field.
   EOT
   type = map(object({
-    vm_size             = string
-    node_count          = optional(number, 1)
-    min_count           = optional(number, null)
-    max_count           = optional(number, null)
-    enable_auto_scaling = optional(bool, false)
-    mode                = optional(string, "User")
-    priority            = optional(string, "Regular") # Regular | Spot
-    spot_max_price      = optional(number, -1)
-    os_disk_size_gb     = optional(number, 128)
-    zones               = optional(list(string), ["1", "2", "3"])
-    node_labels         = optional(map(string), {})
-    node_taints         = optional(list(string), [])
+    vm_size              = string
+    node_count           = optional(number, 1)
+    min_count            = optional(number, null)
+    max_count            = optional(number, null)
+    enable_auto_scaling  = optional(bool, false)
+    mode                 = optional(string, "User")
+    priority             = optional(string, "Regular") # Regular | Spot
+    spot_max_price       = optional(number, -1)
+    os_disk_size_gb      = optional(number, 128)
+    orchestrator_version = optional(string, null)
+    zones                = optional(list(string), ["1", "2", "3"])
+    node_labels          = optional(map(string), {})
+    node_taints          = optional(list(string), [])
   }))
   default = {}
 
@@ -161,10 +192,12 @@ variable "additional_node_pools" {
 variable "network_profile" {
   description = "Network profile. Defaults to Azure CNI with the azure network policy for a secure baseline."
   type = object({
-    network_plugin = optional(string, "azure")
-    network_policy = optional(string, "azure")
-    service_cidr   = optional(string, null)
-    dns_service_ip = optional(string, null)
+    network_plugin      = optional(string, "azure")
+    network_plugin_mode = optional(string, null)
+    network_policy      = optional(string, "azure")
+    service_cidr        = optional(string, null)
+    dns_service_ip      = optional(string, null)
+    pod_cidr            = optional(string, null)
   })
   default = {}
 }
@@ -208,6 +241,12 @@ variable "admin_group_object_ids" {
   default     = []
 }
 
+variable "aad_tenant_id" {
+  description = "AAD tenant ID for Azure RBAC integration. Null lets AKS use the subscription's tenant."
+  type        = string
+  default     = null
+}
+
 ###############################################################################
 # Observability — optional feature toggled by passing a workspace id
 ###############################################################################
@@ -216,6 +255,12 @@ variable "log_analytics_workspace_id" {
   description = "If set, enables the OMS/monitoring addon pointed at this workspace."
   type        = string
   default     = null
+}
+
+variable "oms_msi_auth_enabled" {
+  description = "Use managed-identity auth for the monitoring addon instead of a stored key."
+  type        = bool
+  default     = true
 }
 
 ###############################################################################
